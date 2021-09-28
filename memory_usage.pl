@@ -56,8 +56,8 @@ sub run {
   qx_and_print("podman volume prune -f");
   qx_and_print("sudo pkill nghttpd");
   qx_and_print("sudo pkill podman");
-  qx_and_print("openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost' 2>&1");
-  qx_and_print("base64 /dev/urandom | head -c 80 > hello.html");
+#  qx_and_print("openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost' 2>&1");
+#  qx_and_print("base64 /dev/urandom | head -c 100000000 > hello.html");
   qx_and_print("sync; echo 3 | sudo tee /proc/sys/vm/drop_caches");
 #  print("Memory state with nothing running\n");
   
@@ -69,12 +69,15 @@ sub run {
   my $kern_bef = $words[1];
   my $user_bef = $words[4];
   my $tot_bef = $kern_bef + $user_bef;
-  for (my $i = 6000; $i < 6100; ++$i) {
+  for (my $i = 0; $i < 100; ++$i) {
+    my $port = 6000 + $i;
     if ($pod) {
       sys_and_print("$pod run --name \$(uuidgen) -d fat-fedora nghttpd 6000 key.pem cert.pem > /dev/null");
     }
     else {
-      sys_and_print("nghttpd $i key.pem cert.pem &");
+      chdir("fat-fedora-$i");
+      sys_and_print("nghttpd $port key.pem cert.pem &");
+      chdir("..");
     }
   }
 
@@ -190,6 +193,13 @@ if ($ARGV[0]) {
     for (my $i = 0; $i < 100; ++$i) {
       chdir("fat-fedora-$i");
       qx(sudo podman build --squash -t fat-fedora-squashed-$i .);
+      chdir("..");
+    }
+
+    for (my $i = 0; $i < 100; ++$i) {
+      chdir("fat-fedora-$i");
+      qx(openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost');
+      qx(base64 /dev/urandom | head -c 100000000 > hello.html);
       chdir("..");
     }
   }
