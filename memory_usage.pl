@@ -182,7 +182,7 @@ if ($ARGV[0]) {
     for (my $i = 0; $i < 100; ++$i) {
       qx(mkdir -p fat-fedora-$i && cp Dockerfile fat-fedora-$i/);
       chdir("fat-fedora-$i");
-      qx(printf 'FROM fat-fedora\nRUN openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost' 2>&1\nRUN base64 /dev/urandom | head -c 100000000 > hello.html\n' > Dockerfile);
+      qx(printf 'FROM fat-fedora\nRUN openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost' 2>&1 && echo $i\nRUN base64 /dev/urandom | head -c 100000000 > hello.html && echo $i\n' > Dockerfile);
       qx(sudo podman build -t fat-fedora-$i .);
       chdir("-");
     }
