@@ -33,12 +33,13 @@ sub memory_used_free {
 
 sub run {
   my $pod = shift;
+  my $img_pre = shift;
 
   if ($pod eq "sudo podman") {
-    print("Running rootfull containers: ");
+    print("Running rootfull containers (with prefix $img_pre): ");
   }
   elsif ($pod eq "podman") {
-    print("Running rootless containers: ");
+    print("Running rootless containers (with prefix $img_pre): ");
   }
   else {
     print("Running processes (no containers): ");
@@ -72,7 +73,7 @@ sub run {
   for (my $i = 0; $i < 100; ++$i) {
     my $port = 6000 + $i;
     if ($pod) {
-      sys_and_print("$pod run --name \$(uuidgen) -d fat-fedora-$i nghttpd 6000 key.pem cert.pem > /dev/null");
+      sys_and_print("$pod run --name \$(uuidgen) -d $img_pre-$i nghttpd 6000 key.pem cert.pem > /dev/null");
     }
     else {
       chdir("fat-fedora-$i");
@@ -171,7 +172,9 @@ print("  USS (unshared memory)\n" .
 }
 
 if ($ARGV[0]) {
-  if ("$ARGV[0]" eq "clean") {
+  my $not_recognized = 1;
+  if ("$ARGV[0]" eq "clean" || "$ARGV[0]" eq "disk") {
+    $not_recognized = 0;
     qx(sudo podman rmi -f fat-fedora);
     for (my $i = 0; $i < 100; ++$i) {
       qx(sudo podman rmi -f fat-fedora-$i);
@@ -180,8 +183,12 @@ if ($ARGV[0]) {
 
     qx(sudo podman system prune -af);
   }
-  elsif ("$ARGV[0]" eq "build") {
+
+  if ("$ARGV[0]" eq "build" || "$ARGV[0]" eq "disk") {
+    $not_recognized = 0;
     qx(sudo podman build -t fat-fedora .);
+    my $disk = qx(sudo du -sBM /var/lib/containers);
+    print("container storage used before building any containers: $disk\n");
     for (my $i = 0; $i < 100; ++$i) {
       qx(mkdir -p fat-fedora-$i && cp Dockerfile fat-fedora-$i/);
       chdir("fat-fedora-$i");
@@ -190,12 +197,16 @@ if ($ARGV[0]) {
       chdir("..");
     }
 
+    $disk = qx(sudo du -sBM /var/lib/containers);
+    print("container storage after building unsquashed containers: $disk\n");
     for (my $i = 0; $i < 100; ++$i) {
       chdir("fat-fedora-$i");
       qx(sudo podman build --squash -t fat-fedora-squashed-$i .);
       chdir("..");
     }
 
+    $disk = qx(sudo du -sBM /var/lib/containers);
+    print("container storage after building squashed containers: $disk\n");
     for (my $i = 0; $i < 100; ++$i) {
       chdir("fat-fedora-$i");
       qx(openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost');
@@ -203,7 +214,8 @@ if ($ARGV[0]) {
       chdir("..");
     }
   }
-  else {
+
+  if ($not_recognized) {
     print("\$ARGV[0]: '$ARGV[0]' not recognized\n");
   }
 
@@ -212,5 +224,6 @@ if ($ARGV[0]) {
 
 run("");
 # run("podman");
-run("sudo podman");
+run("sudo podman", "fat-fedora");
+run("sudo podman", "fat-fedora-squashed");
 
