@@ -178,7 +178,7 @@ if ($ARGV[0]) {
       qx(sudo podman rmi -f fat-fedora-squashed-$i);
     }
 
-    qx(sudo podman system prune -f);
+    qx(sudo podman system prune -af);
   }
   elsif ("$ARGV[0]" eq "build") {
     qx(sudo podman build -t fat-fedora .);
