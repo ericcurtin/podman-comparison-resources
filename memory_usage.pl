@@ -72,7 +72,7 @@ sub run {
   for (my $i = 0; $i < 100; ++$i) {
     my $port = 6000 + $i;
     if ($pod) {
-      sys_and_print("$pod run --name \$(uuidgen) -d fat-fedora nghttpd 6000 key.pem cert.pem > /dev/null");
+      sys_and_print("$pod run --name \$(uuidgen) -d fat-fedora-$i nghttpd 6000 key.pem cert.pem > /dev/null");
     }
     else {
       chdir("fat-fedora-$i");
@@ -84,7 +84,7 @@ sub run {
   printf("100 http servers %s\n\n", $pod ? "(each in a different container)" : "(just separate ps)");
 #  sys_and_print("free -h; echo");
   if ($pod) {
-    sys_and_print("for i in \$($pod ps -a -q); do $pod run \$i curl -k https://127.0.0.1:\$i/hello.html > /dev/null 2>&1; done");
+    sys_and_print("for i in \$($pod ps -a -q); do $pod exec \$i curl -k https://127.0.0.1:6000/hello.html > /dev/null 2>&1; done");
   }
   else {
     for (my $i = 6000; $i < 6100; ++$i) {
