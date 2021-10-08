@@ -56,6 +56,29 @@ sub memory_used_smem {
   return split(/\s+/, $ker_user);
 }
 
+my @list_keys;
+my %meminfo_h;
+
+sub memory_used_meminfo() {
+  open my $fh, '<', '/proc/meminfo' or die "open: $!\n";
+  while (my $line = <$fh>) {
+      my @spl = split(':', $line);
+      my $num = $spl[1];
+      if ($num =~ m/kB/) {
+        $num =~ s/[[:alpha:][:space:]]//g;
+        if (!$meminfo_h{$spl[0]}) {
+          push(@list_keys, $spl[0]);
+        }
+
+        $meminfo_h{$spl[0]} = $num;
+      }
+  }
+
+  close $fh or die "close: $!\n";
+
+  return %meminfo_h;
+}
+
 sub du_M {
   my $du_out = qx(sudo du -sBM /var/lib/containers);
   my @disk = split(/\s+/, $du_out);
@@ -120,11 +143,19 @@ sub run {
   
   my @tot_free_bef = memory_used_free();
   my @smem_bef = memory_used_smem();
+  my %meminfo_bef = memory_used_meminfo();
   my $tot_bef = $smem_bef[1] + $smem_bef[4];
   printf("$cnt http servers %s\n\n", $pod ? "(each in a different container)" : "(just separate ps)");
 
-  open_FH("$img_pre-memory.txt");
+  my $img_pre_memory_content = "";
+  my $img_pre_meminfo_content = "Num ";
+  for my $this_key (@list_keys) {
+    if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable)$/) {
+      $img_pre_meminfo_content .= "$this_key ";
+    }
+  }
 
+  $img_pre_meminfo_content .= "\n";
   for (my $i = 0; $i < $cnt; ++$i) {
     my $port = 6000 + $i;
     if ($pod) {
@@ -142,13 +173,35 @@ sub run {
 
     my @tot_free_aft = memory_used_free();
     my @smem_aft = memory_used_smem();
+    my %meminfo_aft = memory_used_meminfo();
     my $tot_aft = $smem_aft[1] + $smem_aft[4];
     if ("$ARGV[1]" eq "file") {
-      printf(FH "%d %d %d %d %d %d\n", $i + 1, ($smem_aft[1] - $smem_bef[1]) / 1024, ($smem_aft[4] - $smem_bef[4]) / 1024, ($tot_aft - $tot_bef) / 1024, $tot_free_aft[2] - $tot_free_bef[2], $tot_free_aft[5] - $tot_free_bef[5]);
+      $img_pre_memory_content .= sprintf("%d %d %d %d %d %d\n", $i + 1, ($smem_aft[1] - $smem_bef[1]) / 1024, ($smem_aft[4] - $smem_bef[4]) / 1024, ($tot_aft - $tot_bef) / 1024, $tot_free_aft[2] - $tot_free_bef[2], $tot_free_aft[5] - $tot_free_bef[5]);
+      $img_pre_meminfo_content .= sprintf("%d ", $i + 1);
+      for my $this_key (@list_keys) {
+        if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable)$/) {
+          $img_pre_meminfo_content .= sprintf("%d ", $meminfo_aft{$this_key} / 1024);
+        }
+      }
+
+      $img_pre_meminfo_content .= "\n";
     }
   }
 
+  open_FH("$img_pre-memory.txt");
+  if ("$ARGV[1]" eq "file") {
+    print(FH "$img_pre_memory_content");
+  }
+
   close_FH();
+
+  open_FH("$img_pre-meminfo.txt");
+  if ("$ARGV[1]" eq "file") {
+    print(FH "$img_pre_meminfo_content");
+  }
+
+  close_FH();
+
   #  qx(sync; echo 3 | sudo tee /proc/sys/vm/drop_caches);
   my @tot_free_aft = memory_used_free();
   my @smem_aft = memory_used_smem();
