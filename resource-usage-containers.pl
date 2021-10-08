@@ -74,6 +74,13 @@ sub memory_used_meminfo() {
       }
   }
 
+
+  if (!$meminfo_h{"Other"}) {
+    push(@list_keys, "Other");
+  }
+
+  $meminfo_h{"Other"} = $meminfo_h{"MemTotal"} - $meminfo_h{"MemFree"} - ($meminfo_h{"AnonPages"} + $meminfo_h{"Mapped"} + $meminfo_h{"Buffers"} + $meminfo_h{"Cached"} + $meminfo_h{"SReclaimable"});
+
   close $fh or die "close: $!\n";
 
   return %meminfo_h;
@@ -150,12 +157,12 @@ sub run {
   my $img_pre_memory_content = "";
   my $img_pre_meminfo_content = "Num ";
   for my $this_key (@list_keys) {
-    if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable)$/) {
+    if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable|Other)$/) {
       $img_pre_meminfo_content .= "$this_key ";
     }
   }
 
-  $img_pre_meminfo_content .= "\n";
+  $img_pre_meminfo_content .= "Other\n";
   for (my $i = 0; $i < $cnt; ++$i) {
     my $port = 6000 + $i;
     if ($pod) {
@@ -179,7 +186,8 @@ sub run {
       $img_pre_memory_content .= sprintf("%d %d %d %d %d %d\n", $i + 1, ($smem_aft[1] - $smem_bef[1]) / 1024, ($smem_aft[4] - $smem_bef[4]) / 1024, ($tot_aft - $tot_bef) / 1024, $tot_free_aft[2] - $tot_free_bef[2], $tot_free_aft[5] - $tot_free_bef[5]);
       $img_pre_meminfo_content .= sprintf("%d ", $i + 1);
       for my $this_key (@list_keys) {
-        if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable)$/) {
+        if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable|Other)$/) {
+          $meminfo_aft{$this_key} -= $meminfo_bef{$this_key};
           $img_pre_meminfo_content .= sprintf("%d ", $meminfo_aft{$this_key} / 1024);
         }
       }
