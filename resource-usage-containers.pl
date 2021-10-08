@@ -105,17 +105,14 @@ sub pod_run {
   sys_and_print("$pod run --name '$uuid' -d $img_nam nghttpd 6000 key.pem cert.pem > /dev/null");
 }
 
-sub open_FH {
+sub str2file {
+  my $str = shift;
   my $fn = shift;
 
   if ("$ARGV[1]" eq "file") {
-    open(FH, '>', $fn);
-  }
-}
-
-sub close_FH {
-  if ("$ARGV[1]" eq "file") {
-    close(FH);
+    open my $fh, '>', $fn or die "open: $!\n";
+    print($fh $str);
+    close $fh or die "close: $!\n";
   }
 }
 
@@ -196,19 +193,8 @@ sub run {
     }
   }
 
-  open_FH("$img_pre-memory.txt");
-  if ("$ARGV[1]" eq "file") {
-    print(FH "$img_pre_memory_content");
-  }
-
-  close_FH();
-
-  open_FH("$img_pre-meminfo.txt");
-  if ("$ARGV[1]" eq "file") {
-    print(FH "$img_pre_meminfo_content");
-  }
-
-  close_FH();
+  str2file($img_pre_memory_content, "$img_pre-memory.txt");
+  str2file($img_pre_meminfo_content, "$img_pre-meminfo.txt");
 
   #  qx(sync; echo 3 | sudo tee /proc/sys/vm/drop_caches);
   my @tot_free_aft = memory_used_free();
@@ -272,50 +258,41 @@ if ($ARGV[0]) {
 
   if ("$ARGV[0]" eq "build" || "$ARGV[0]" eq "disk") {
     $not_recognized = 0;
-    open_FH("fat-fedora-build-time.txt");
-
     my $start_time = time();
     podman_build("fat-fedora");
-    printf(FH "%d\n", time() - $start_time);
-    close_FH();
+    str2file(sprintf("%d\n", time() - $start_time), "fat-fedora-build-time.txt");
     my $orig_disk = du_M();
     print("container storage used before building any containers:             ${orig_disk}M\n");
     my @file_content;
-    open_FH("fat-fedora-unsquashed-build-time.txt");
+    my $unsquashed_build_time_content = "";
     for (my $i = 0; $i < $cnt; ++$i) {
       qx(mkdir -p fat-fedora-$i && cp Dockerfile fat-fedora-$i/);
       chdir("fat-fedora-$i");
       qx(printf 'FROM fat-fedora\nRUN openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost' 2>&1 && echo $i\nRUN base64 /dev/urandom | head -c $file_siz > hello.html && echo $i\n' > Dockerfile);
       $start_time = time();
       podman_build("fat-fedora-$i");
-      if ("$ARGV[1]" eq "file") {
-        printf(FH "%d %d\n", $i + 1, time() - $start_time);
-      }
-
+      $unsquashed_build_time_content .= sprintf("%d %d\n", $i + 1, time() - $start_time);
       chdir("..");
       $file_content[0][$i] = du_M() - $orig_disk;
     }
 
-    close_FH();
+    str2file($unsquashed_build_time_content, "fat-fedora-unsquashed-build-time.txt");
     my $du_out = du_M();
     my $new_orig_disk = $du_out;
     $du_out -= $orig_disk;
     $orig_disk = $new_orig_disk;
     print("additional container storage after building unsquashed containers: ${du_out}M\n");
-    open_FH("fat-fedora-squashed-build-time.txt");
+    my $squashed_build_time_content = "";
     for (my $i = 0; $i < $cnt; ++$i) {
       chdir("fat-fedora-$i");
       $start_time = time();
       podman_build("fat-fedora-squashed-$i", "--squash-all");
-      if ("$ARGV[1]" eq "file") {
-        printf(FH "%d %d\n", $i + 1, time() - $start_time);
-      }
-
+      $squashed_build_time_content .= sprintf("%d %d\n", $i + 1, time() - $start_time);
       chdir("..");
       $file_content[1][$i] = du_M() - $orig_disk;
     }
 
-    close_FH();
+    str2file($squashed_build_time_content, "fat-fedora-squashed-build-time.txt");
     $du_out = du_M();
     $new_orig_disk = $du_out;
     $du_out -= $orig_disk;
@@ -328,14 +305,14 @@ if ($ARGV[0]) {
       chdir("..");
     }
 
-    open_FH("disk.txt");
+    my $disk_content = "";
     if ("$ARGV[1]" eq "file") {
       for (my $i = 0; $i < $cnt; ++$i) {
-        printf(FH "%d %d %d\n", $i + 1, $file_content[0][$i], $file_content[1][$i]);
+        $disk_content .= sprintf("%d %d %d\n", $i + 1, $file_content[0][$i], $file_content[1][$i]);
       }
     }
 
-    close_FH();
+    str2file($disk_content, "disk.txt");
   }
 
   if ("$ARGV[0]" eq "memory") {
