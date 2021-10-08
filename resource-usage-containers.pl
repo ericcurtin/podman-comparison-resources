@@ -116,7 +116,6 @@ sub str2file {
   }
 }
 
-my $j = 0;
 sub run {
   my $pod = shift;
   my $img_pre = shift || "";
@@ -179,17 +178,13 @@ sub run {
     my @smem_aft = memory_used_smem();
     my %meminfo_aft = memory_used_meminfo();
     my $tot_aft = $smem_aft[1] + $smem_aft[4];
-    if ("$ARGV[1]" eq "file") {
-      $img_pre_memory_content .= sprintf("%d %d %d %d %d %d\n", $i + 1, ($smem_aft[1] - $smem_bef[1]) / 1024, ($smem_aft[4] - $smem_bef[4]) / 1024, ($tot_aft - $tot_bef) / 1024, $tot_free_aft[2] - $tot_free_bef[2], $tot_free_aft[5] - $tot_free_bef[5]);
-      $img_pre_meminfo_content .= sprintf("%d ", $i + 1);
-      for my $this_key (@list_keys) {
-        if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable|Other)$/) {
-          $meminfo_aft{$this_key} -= $meminfo_bef{$this_key};
-          $img_pre_meminfo_content .= sprintf("%d ", $meminfo_aft{$this_key} / 1024);
-        }
+    $img_pre_memory_content .= sprintf("%d %d %d %d %d %d\n", $i + 1, ($smem_aft[1] - $smem_bef[1]) / 1024, ($smem_aft[4] - $smem_bef[4]) / 1024, ($tot_aft - $tot_bef) / 1024, $tot_free_aft[2] - $tot_free_bef[2], $tot_free_aft[5] - $tot_free_bef[5]);
+    $img_pre_meminfo_content .= sprintf("%d ", $i + 1);
+    for my $this_key (@list_keys) {
+      if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable|Other)$/) {
+        $meminfo_aft{$this_key} -= $meminfo_bef{$this_key};
+        $img_pre_meminfo_content .= sprintf("%d ", $meminfo_aft{$this_key} / 1024);
       }
-
-      $img_pre_meminfo_content .= "\n";
     }
   }
 
@@ -306,10 +301,8 @@ if ($ARGV[0]) {
     }
 
     my $disk_content = "";
-    if ("$ARGV[1]" eq "file") {
-      for (my $i = 0; $i < $cnt; ++$i) {
-        $disk_content .= sprintf("%d %d %d\n", $i + 1, $file_content[0][$i], $file_content[1][$i]);
-      }
+    for (my $i = 0; $i < $cnt; ++$i) {
+      $disk_content .= sprintf("%d %d %d\n", $i + 1, $file_content[0][$i], $file_content[1][$i]);
     }
 
     str2file($disk_content, "disk.txt");
@@ -318,9 +311,7 @@ if ($ARGV[0]) {
   if ("$ARGV[0]" eq "memory") {
     $not_recognized = 0;
     run("");
-    ++$j;
     run("sudo podman", "fat-fedora");
-    ++$j;
     run("sudo podman", "fat-fedora-squashed");
   }
 
