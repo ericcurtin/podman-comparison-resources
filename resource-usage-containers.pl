@@ -79,7 +79,7 @@ sub memory_used_meminfo() {
     push(@list_keys, "Other");
   }
 
-  $meminfo_h{"Other"} = $meminfo_h{"MemTotal"} - $meminfo_h{"MemFree"} - ($meminfo_h{"AnonPages"} + $meminfo_h{"Mapped"} + $meminfo_h{"Buffers"} + $meminfo_h{"Cached"} + $meminfo_h{"SReclaimable"});
+  $meminfo_h{"Other"} = $meminfo_h{"MemTotal"} - $meminfo_h{"MemFree"} - ($meminfo_h{"AnonPages"} + $meminfo_h{"Mapped"} + $meminfo_h{"Buffers"} + $meminfo_h{"Cached"} + $meminfo_h{"SReclaimable"} + $meminfo_h{"SUnreclaim"});
 
   close $fh or die "close: $!\n";
 
@@ -121,13 +121,13 @@ sub run {
   my $img_pre = shift || "";
 
   if ($pod eq "sudo podman") {
-    print("Run rootfull containers (with prefix $img_pre): ");
+    print("Run rootfull containers (with prefix $img_pre):\n\n");
   }
   elsif ($pod eq "podman") {
-    print("Run rootless containers (with prefix $img_pre): ");
+    print("Run rootless containers (with prefix $img_pre):\n\n");
   }
   else {
-    print("Run processes (no containers): ");
+    print("Run processes (no containers):\n\n");
   }
 
   qx_and_print("sudo podman kill -a");
@@ -147,18 +147,20 @@ sub run {
   my @tot_free_bef = memory_used_free();
   my @smem_bef = memory_used_smem();
   my %meminfo_bef = memory_used_meminfo();
+  my $slabtop_content = qx(sudo slabtop -o -s c) . "\n";
   my $tot_bef = $smem_bef[1] + $smem_bef[4];
   printf("$cnt http servers %s\n\n", $pod ? "(each in a different container)" : "(just separate ps)");
 
   my $img_pre_memory_content = "";
   my $img_pre_meminfo_content = "Num ";
   for my $this_key (@list_keys) {
-    if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable|Other)$/) {
+    if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable|SUnreclaim|Other)$/) {
       $img_pre_meminfo_content .= "$this_key ";
     }
   }
 
-  $img_pre_meminfo_content .= "Other\n";
+  chop($img_pre_meminfo_content);
+  $img_pre_meminfo_content .= "\n";
   for (my $i = 0; $i < $cnt; ++$i) {
     my $port = 6000 + $i;
     if ($pod) {
@@ -181,15 +183,20 @@ sub run {
     $img_pre_memory_content .= sprintf("%d %d %d %d %d %d\n", $i + 1, ($smem_aft[1] - $smem_bef[1]) / 1024, ($smem_aft[4] - $smem_bef[4]) / 1024, ($tot_aft - $tot_bef) / 1024, $tot_free_aft[2] - $tot_free_bef[2], $tot_free_aft[5] - $tot_free_bef[5]);
     $img_pre_meminfo_content .= sprintf("%d ", $i + 1);
     for my $this_key (@list_keys) {
-      if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable|Other)$/) {
+      if ($this_key =~ m/^(AnonPages|Mapped|Buffers|Cached|SReclaimable|SUnreclaim|Other)$/) {
         $meminfo_aft{$this_key} -= $meminfo_bef{$this_key};
         $img_pre_meminfo_content .= sprintf("%d ", $meminfo_aft{$this_key} / 1024);
       }
     }
+
+    chop($img_pre_meminfo_content);
+    $img_pre_meminfo_content .= "\n";
   }
 
+  $slabtop_content .= qx(sudo slabtop -o -s c) . "\n";
   str2file($img_pre_memory_content, "$img_pre-memory.txt");
   str2file($img_pre_meminfo_content, "$img_pre-meminfo.txt");
+  str2file($slabtop_content, "$img_pre-slabtop.txt");
 
   #  qx(sync; echo 3 | sudo tee /proc/sys/vm/drop_caches);
   my @tot_free_aft = memory_used_free();
@@ -203,7 +210,7 @@ sub run {
   printf("Mem: (free -m, used):                  before: %5dM after: %5dM diff: %5dM\n", $tot_free_bef[2], $tot_free_aft[2], $tot_free_aft[2] - $tot_free_bef[2]);
   #  printf("Mem: (free -m, free):                  before: %5dM after: %5dM diff: %5dM\n", $tot_free_bef[3], $tot_free_aft[3], $tot_free_aft[3] - $tot_free_bef[3]);
   #  printf("Mem: (free -m, share):                 before: %5dM after: %5dM diff: %5dM\n", $tot_free_bef[4], $tot_free_aft[4], $tot_free_aft[4] - $tot_free_bef[4]);
-  printf("Mem: (free -m, buff/cache):            before: %5dM after: %5dM diff: %5dM\n", $tot_free_bef[5], $tot_free_aft[5], $tot_free_aft[5] - $tot_free_bef[5]);
+  printf("Mem: (free -m, buff/cache):            before: %5dM after: %5dM diff: %5dM\n\n", $tot_free_bef[5], $tot_free_aft[5], $tot_free_aft[5] - $tot_free_bef[5]);
   #  printf("Mem: (free -m, available):             before: %5dM after: %5dM diff: %5dM\n\n", $tot_free_bef[6], $tot_free_aft[6], $tot_free_aft[6] - $tot_free_bef[6]);
 
   if (!system("sudo pgrep nghttpd > /dev/null")) {
