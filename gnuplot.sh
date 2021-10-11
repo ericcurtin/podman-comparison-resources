@@ -30,3 +30,10 @@ set key autotitle columnheader
 plot for [i=2:48] '$i.txt' using 1:i with lines lw 2" | gnuplot
 done;
 
+mv -- -memory.png processes-memory.png
+mv fat-fedora-memory.png unsquashed-memory.png
+mv fat-fedora-squashed-memory.png squashed-memory.png
+mv -- -meminfo.png processes-meminfo.png
+mv fat-fedora-meminfo.png unsquashed-meminfo.png
+mv fat-fedora-squashed-meminfo.png squashed-meminfo.png
+
