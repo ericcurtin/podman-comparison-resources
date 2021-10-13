@@ -66,7 +66,7 @@ sub memory_used_meminfo() {
       my $num = $spl[1];
       if ($num =~ m/kB/) {
         $num =~ s/[[:alpha:][:space:]]//g;
-        if (!$meminfo_h{$spl[0]}) {
+        if (!exists $meminfo_h{$spl[0]}) {
           push(@list_keys, $spl[0]);
         }
 
@@ -75,7 +75,7 @@ sub memory_used_meminfo() {
   }
 
 
-  if (!$meminfo_h{"Other"}) {
+  if (!exists $meminfo_h{"Other"}) {
     push(@list_keys, "Other");
   }
 
