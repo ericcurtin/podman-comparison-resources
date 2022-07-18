@@ -100,3 +100,5 @@ Squashed containers use around 8-10x the memory compared to just using unsandbox
 
 Squashed containers use considerably more disk space due to lack of deduplication.
 
+![image](https://user-images.githubusercontent.com/1694275/179524264-0a037357-bbf5-4fce-8a04-dd2e2bd4716e.png)
+
