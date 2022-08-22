@@ -10,7 +10,7 @@ The base Dockerfile from this is a fedora system with just a few small packages 
 
 These can be run via:
 
-    ./resource_usage.pl disk file
+    ./resource-usage-containers.pl disk file
 
 Results (on CentOS 8 Stream):
 
@@ -22,7 +22,7 @@ Results (on CentOS 8 Stream):
 
 These can be run via:
 
-    ./resource_usage.pl memory file
+    ./resource-usage-containers.pl memory file
 
 Results (on CentOS 8 Stream):
 
@@ -75,7 +75,7 @@ These can be generated via:
 
     ./gnuplot.sh
 
-after the `./resource_usage.pl memory file` command has been run. You will see
+after the `./resource-usage-containers.pl memory file` command has been run. You will see
 .png files output.
 
 ## Some dependencies for running script
@@ -88,7 +88,7 @@ access.
 
 You can run everything in one shot via:
 
-    ./resource_usage.pl disk file && ./resource_usage.pl memory file && ./gnuplot.sh
+    ./resource-usage-containers.pl disk file && ./resource-usage-containers.pl memory file && ./gnuplot.sh
 
 The 128 squashed containers can take almost 100G space, beware!
 
