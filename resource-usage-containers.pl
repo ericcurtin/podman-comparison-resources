@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+# dnf install smem curl nghttpd
+
 sub qx_and_print {
   my $str = shift;
 
